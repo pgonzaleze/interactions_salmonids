@@ -1,0 +1,1 @@
+## Welcome to the GitHub repository for our research project on the interactions of multiple stressors and cumulative effects in salmonids! This repository contains the necessary database and R code to perform in-depth analyses and explore the complex relationships between various stressors and their cumulative impacts on salmonid populations.
