@@ -6,8 +6,9 @@
 #####
 # The University of British Columbia
 # Institute for the Oceans and Fisheries
-# Author: Pedro G. Gonz?lez-Espinosa
-# Date: 13/ AUG /2022
+# Author: Pedro G. Gonzalez-Espinosa
+# Created: 13/ AUG /2022
+# Last update: 21/ AUG /2023
 
 #####
 #Load libraries
@@ -16,14 +17,14 @@ library(readxl)
 library(igraph) 
 library(dplyr)  
 library(ggplot2)  
-library(esc) # Hedges?d
+library(esc) # To compute Hedges d. It wont work using R Version 4.3.1 but the issue has been fixed in this script
 library(tidyr)
 library(forcats) # reorder axis of plots
 library(imputeTS) # to change NAs to any other number
 library(FSA) # Dunn Test
 library(metafor) # for mixed-effects meta-regression model & Rank Correlation Test
 library(ggwordcloud) # make a word cloud image
-library(compute.es)
+#library(compute.es)
 
 # load database
 int_db <- read_excel('Hedges.xlsx')
@@ -32,18 +33,319 @@ int_db <- read_excel('Hedges.xlsx')
 int_db <- int_db[1:59, ] # adjust according to the length of those records with full data 
 
 # save lists of medias, SD and sample sizes, use "unlist" to  convert a list to vector
-media1 <- as.numeric(unlist(int_db[,12]))   
-media2 <- as.numeric(unlist(int_db[,13]))
-sd1 <- as.numeric(unlist(int_db[,14]))
-sd2 <- as.numeric(unlist(int_db[,15]))
-replicates <- as.numeric(unlist(int_db[,21]))
+media1 <- as.numeric(unlist(int_db[,13]))   
+media2 <- as.numeric(unlist(int_db[,14]))
+sd1 <- as.numeric(unlist(int_db[,15]))
+sd2 <- as.numeric(unlist(int_db[,16]))
+replicates <- as.numeric(unlist(int_db[,19]))
 replicates <- na_replace(replicates, 1) # change NA?s to 1
-sample_ctrl <- as.numeric(unlist(int_db[,19])) #* replicates 
-sample_n <- as.numeric(unlist(int_db[,20])) #* replicates
+sample_ctrl <- as.numeric(unlist(int_db[,17])) #* replicates 
+sample_n <- as.numeric(unlist(int_db[,18])) #* replicates
+
+
+##### Hot fix to avoid error using R Version 4.3.1 ####
+# Functions extracted from https://github.com/strengejacke/esc
+
+# Compute variance of d-type effect size
+esc.vd <- function(d, grp1n, grp2n) {
+  (grp1n + grp2n) / (grp1n * grp2n) + (d * d) / (2 * (grp1n + grp2n))
+}
+
+# 95% confidence interval
+#' @importFrom stats qnorm
+lower_d <- function(d, v) d - stats::qnorm(.975) * sqrt(v)
+upper_d <- function(d, v) d + stats::qnorm(.975) * sqrt(v)
+
+# small sample size bias correction
+sssbc <- function(totaln) return(1 - (3 / (4 * totaln - 9)))
+
+# generic conversion function
+esc_generic <- function(es, v, grp1n, grp2n, es.type, info, study) {
+  # compute total n
+  totaln <- grp1n + grp2n
+  
+  
+  # return effect size as odds ratio
+  
+  if (es.type == "or")
+    return(convert_d2or(
+      d = es,
+      v = v,
+      totaln = totaln,
+      es.type = "logit",
+      info = paste0(info, " to effect size odds ratios"),
+      study = study
+    ))
+  
+  
+  # return effect size as cox odds ratio
+  
+  if (es.type == "cox.or")
+    return(convert_d2or(
+      d = es,
+      v = v,
+      totaln = totaln,
+      es.type = "cox",
+      info = paste0(info, " to effect size Cox odds ratios"),
+      study = study
+    ))
+  
+  
+  # return effect size as f
+  
+  if (es.type == "f")
+    return(convert_d2f(
+      d = es,
+      v = v,
+      totaln = totaln,
+      info = paste0(info, " to effect size f"),
+      study = study
+    ))
+  
+  
+  # return effect size as eta squared
+  
+  if (es.type == "eta")
+    return(convert_d2etasq(
+      d = es,
+      v = v,
+      grp1n = grp1n,
+      grp2n = grp2n,
+      info = paste0(info, " to effect size eta squared"),
+      study = study
+    ))
+  
+  
+  # return effect size as log odds
+  
+  if (es.type == "logit")
+    return(convert_d2logit(
+      d = es,
+      v = v,
+      totaln = totaln,
+      es.type = "logit",
+      info = paste0(info, " to effect size logits"),
+      study = study
+    ))
+  
+  
+  # return effect size as cox log odds
+  
+  if (es.type == "cox.log")
+    return(convert_d2logit(
+      d = es,
+      v = v,
+      totaln = totaln,
+      es.type = "cox",
+      info = paste0(info, " to effect size Cox logits"),
+      study = study
+    ))
+  
+  
+  # return effect size as correlation
+  
+  if (es.type == "r")
+    return(convert_d2r(
+      d = es,
+      v = v,
+      grp1n = grp1n,
+      grp2n = grp2n,
+      info = paste0(info, " to effect size correlation"),
+      study = study
+    ))
+  
+  
+  # return d or Hedges' g
+  
+  if (es.type == "d") {
+    info.suffix <- " to effect size d"
+  } else if (es.type == "g") {
+    info.suffix <- " to effect size Hedges' g"
+    es <- hedges_g(d = es, totaln = grp1n + grp2n)
+  }
+  
+  
+  # return effect size as standardized mean difference d or Hedges' g
+  
+  structure(
+    class = c("esc", "esc_d"),
+    list(es = es, se = sqrt(v), var = v, ci.lo = lower_d(es, v), ci.hi = upper_d(es, v),
+         w = 1 / v, totaln = totaln, measure = es.type,
+         info = paste0(info, info.suffix), study = study
+    ))
+}
+
+#' @title Compute effect size from Mean and Standard Deviation
+#' @name esc_mean_sd
+#'
+#' @description Compute effect size from mean and either group-based standard
+#'              deviations or full sample standard deviation.
+#'
+#' @param grp1m The mean of the first group.
+#' @param grp1sd The standard deviation of the first group.
+#' @param grp1n The sample size of the first group.
+#' @param grp2m The mean of the second group.
+#' @param grp2sd The standard deviation of the second group.
+#' @param grp2n The sample size of the second group.
+#' @param r Correlation for within-subject designs (paired samples, repeated measures).
+#' @param totalsd The full sample standard deviation. Either \code{grp1sd} and
+#'        \code{grp2sd}, or \code{totalsd} must be specified.
+#'
+#' @inheritParams esc_beta
+#'
+#' @return The effect size \code{es}, the standard error \code{se}, the variance
+#'         of the effect size \code{var}, the lower and upper confidence limits
+#'         \code{ci.lo} and \code{ci.hi}, the weight factor \code{w} and the
+#'         total sample size \code{totaln}.
+#'
+#' @references Lipsey MW, Wilson DB. 2001. Practical meta-analysis. Thousand Oaks, Calif: Sage Publications
+#'             \cr \cr
+#'             Wilson DB. 2016. Formulas Used by the "Practical Meta-Analysis Effect Size Calculator". Unpublished manuscript: George Mason University
+#'
+#' @note If \code{es.type = "r"}, Fisher's transformation for the effect size
+#'       \code{r} and their confidence intervals are also returned.
+#'
+#' @examples
+#' # with standard deviations for each group
+#' esc_mean_sd(
+#'   grp1m = 7, grp1sd = 2, grp1n = 50,
+#'   grp2m = 9, grp2sd = 3, grp2n = 60,
+#'   es.type = "logit"
+#' )
+#'
+#' # effect-size d, within-subjects design
+#' esc_mean_sd(
+#'   grp1m = 7, grp1sd = 2, grp1n = 50,
+#'   grp2m = 9, grp2sd = 3, grp2n = 60, r = .7
+#' )
+#'
+#' # with full sample standard deviations
+#' esc_mean_sd(grp1m = 7, grp1n = 50, grp2m = 9, grp2n = 60, totalsd = 4)
+#'
+#' @export
+esc_mean_sd <- function(grp1m, grp1sd, grp1n, grp2m, grp2sd, grp2n, totalsd, r,
+                        es.type = c("d", "g", "or", "logit", "r", "cox.or", "cox.log"), study = NULL) {
+  es.type <- match.arg(es.type)
+  
+  # check if parameter are complete
+#  if ((missing(totalsd) || is.null(totalsd) || any(is.na(totalsd))) &&
+#      ((missing(grp1sd) || is.null(grp1sd) || any(is.na(grp1sd))) ||
+#       (missing(grp2sd) || is.null(grp2sd) || any(is.na(grp2sd))))) {
+#    warning("Either `totalsd` or both `grp1sd` and `grp2sd` must be specified.", call. = F)
+#    return(esc_generic(es = NA, v = NA, es.type = es.type, grp1n = NA, grp2n = NA, info = NA, study = NA))
+#  }
+  
+  # compute totaln, better overview
+  totaln <- grp1n + grp2n
+  
+  # compute mean difference
+  dm <- grp1m - grp2m
+  info <- "mean and sd"
+  
+  # compute pooled standard deviation.
+  if (!missing(totalsd) && !is.null(totalsd)) {
+    # pooled sd from full sample sd, formula from book
+    sdp <- ((totalsd^2 * (totaln - 1) - ((dm^2 * grp1n * grp2n) / totaln)) / (totaln - 1))
+    
+    # pooled sd from full sample sd, formula from unpublished manuscript. formulas vary,
+    # email-correspondence with author suggests that book-formula should be correct
+    # however, in some case value might be negative, so sqrt is not possible, use
+    # alternative formula then
+    if (sdp < 0)
+      sdp <- (totalsd^2 * (totaln - 1) - ((grp1m^2 + grp2m^2 - 2 * grp1m * grp2m) / totaln)) / totaln
+    
+    sd_pooled <- sqrt(sdp)
+  } else if (!missing(r)) {
+    # pooled sd, within-subject
+    sd_pooled <- sqrt(grp1sd^2 + grp2sd^2 - (2 * r * grp1sd * grp2sd))
+    info <- "mean and sd (within-subject)"
+  } else {
+    # pooled sd from group sd's
+    sd_pooled <- sqrt((grp1sd^2 * (grp1n - 1) + grp2sd^2 * (grp2n - 1)) / (grp1n + grp2n - 2))
+  }
+  
+  # compute effect size
+  es <- (grp1m - grp2m) / sd_pooled
+  # compute variance
+  v <- esc.vd(es, grp1n, grp2n)
+  
+  # return effect size
+  esc_generic(
+    es = es,
+    v = v,
+    es.type = es.type,
+    grp1n = grp1n,
+    grp2n = grp2n,
+    info = info,
+    study = study
+  )
+}
+
+
+#' @title Compute effect size from Mean and Standard Error
+#' @name esc_mean_se
+#'
+#' @description Compute effect size from Mean and Standard Error.
+#'
+#' @param grp1se The standard error of the first group.
+#' @param grp2se The standard error of the second group.
+#' @inheritParams esc_mean_sd
+#'
+#' @return The effect size \code{es}, the standard error \code{se}, the variance
+#'         of the effect size \code{var}, the lower and upper confidence limits
+#'         \code{ci.lo} and \code{ci.hi}, the weight factor \code{w} and the
+#'         total sample size \code{totaln}.
+#'
+#' @note If \code{es.type = "r"}, Fisher's transformation for the effect size
+#'       \code{r} and their confidence intervals are also returned.
+#'
+#' @references Lipsey MW, Wilson DB. 2001. Practical meta-analysis. Thousand Oaks, Calif: Sage Publications
+#'             \cr \cr
+#'             Wilson DB. 2016. Formulas Used by the "Practical Meta-Analysis Effect Size Calculator". Unpublished manuscript: George Mason University
+#'
+#' @examples
+#' esc_mean_se(grp1m = 7, grp1se = 1.5, grp1n = 50,
+#'             grp2m = 9, grp2se = 1.8, grp2n = 60, es.type = "or")
+#'
+#' @export
+esc_mean_se <- function(grp1m, grp1se, grp1n, grp2m, grp2se, grp2n, r,
+                        es.type = c("d", "g", "or", "logit", "r", "f", "eta", "cox.or", "cox.log"), study = NULL) {
+  es.type <- match.arg(es.type)
+  
+  grp1sd <- grp1se * sqrt(grp1n - 1)
+  grp2sd <- grp2se * sqrt(grp2n - 1)
+  
+  info <- "mean and se"
+  
+  if (!missing(r)) {
+    # pooled sd, within-subject
+    sd_pooled <- sqrt(grp1sd^2 + grp2sd^2 - (2 * r * grp1sd * grp2sd))
+    info <- "mean and se (within-subject)"
+  } else {
+    sd_pooled <- sqrt((grp1sd^2 * (grp1n - 1) + grp2sd^2 * (grp2n - 1)) / (grp1n + grp2n - 2))
+  }
+  
+  es <- (grp1m - grp2m) / sd_pooled
+  v <- esc.vd(es, grp1n, grp2n)
+  
+  # return effect size
+  esc_generic(
+    es = es,
+    v = v,
+    es.type = es.type,
+    grp1n = grp1n,
+    grp2n = grp2n,
+    info = info,
+    study = study
+  )
+}
+
+
+#####
 
 # compute the Hedges?d
 g=(esc_mean_sd(grp1m=media1,grp1sd=sd1,grp1n=sample_n,
-               grp2m=media2,grp2sd=sd2,grp2n=sample_n, es.type = 'g'))
+               grp2m=media2,grp2sd=as.numeric(sd2),grp2n=sample_n, es.type = 'g'))
 
 effect_size = as.data.frame(cbind(g$es, g$ci.lo, g$ci.hi)) 
 colnames(effect_size) <- c('ES', 'CI_lo', 'CI_hi')  # rename columns
@@ -232,54 +534,6 @@ hedges[56,'PairedJoin'] = "Temperature-pH" # match names and order of stressors
 coocPair <-  hedges %>% 
   count(PairedJoin)
 #write.csv(coocPair, "paireedCount.csv")
-
-
-##### =========== #####
-##### Funnel plot #####
-##### =========== #####
-
-# compute the SE of the sample
-funnel_plot_data <- hedges
-funnel_plot_data <- funnel_plot_data[1:57, ]
-funnel_plot_data$SE_funnel <- (as.numeric(funnel_plot_data$SD2) / sqrt(funnel_plot_data$`Sample size`))
-funnel_plot_data$variance <- as.numeric(funnel_plot_data$SD2)^2
-colnames(funnelDF) <- c("SE", "ES", "SS")  # Standard error SE; Effect size ES
-funnel_plot_data$ES <- hedges_g(funnelDF$ES, funnelDF$SS)
-funnelDF <- as.data.frame(cbind(funnel_plot_data$SE_funnel, funnel_plot_data$ES, 
-                                funnel_plot_data$`Sample size`))
-
-funnelDF[28, 'SE'] = 0
-
-
-funnel(g$es, g$se, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), legend=TRUE)
-regtest(g$es, sei=g$se)
-ranktest(g$es, sei=g$se)
-
-
-######### ================= #########
-######### word cloud image  #########
-######### ================= #########
-
-drivers <-c("Temperature", "Dissolved Oxygen", "Pesticides", "Metal", 
-            "Salinity", "Nitrate", "Aerial Expossure", "chemical", "Density",
-            "pH", "Radiation", "Suspended Sediments", "UVB", "Ammonia",
-            "Dissease", "Water Quality", "Invasive Species", "Water Flow", 
-            "Cyanobacteria")
-weight <- c(61, 23, 17, 16, 15, 10, 10, 10, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8)
-
-driverDf <- cbind(drivers, weight)
-
-driverDf <- driverDf %>%
-  mutate(angle = 15 * sample(-2:2, n(), replace = TRUE, prob = c(1, 1, 4, 1, 1)))
-
-set.seed(1984)
-ggplot(drivers, aes(label = drivers, size = weight,
-                    color = factor(sample.int(10, nrow(driverDf), replace = TRUE)),
-                    angle = driverDf$angle)) +
-  geom_text_wordcloud(eccentricity = 0.5) +
-  scale_size_area(max_size = 10) +
-  theme_minimal()
-
 
 ######### =================================================== ###########
 #########                  Descriptive plots                  ###########
