@@ -24,7 +24,7 @@ library(imputeTS) # to change NAs to any other number
 library(FSA) # Dunn Test
 library(metafor) # for mixed-effects meta-regression model & Rank Correlation Test
 library(ggwordcloud) # make a word cloud image
-#library(compute.es)
+#library(compute.es) 
 
 # load database
 int_db <- read_excel('Hedges.xlsx')
@@ -569,3 +569,46 @@ species_count <-  hedges %>%
 
 
 
+##### =========== #####
+##### Funnel plot #####
+##### =========== #####
+
+#funnel(g$es, g$se, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), legend=TRUE)
+regtest(g$es, sei=g$se)
+ranktest(g$es, sei=g$se)
+
+# Create a dataframe with effect sizes and standard errors
+funnel_data <- data.frame(
+  ES = hedges$ES,
+  SE = (hedges$CI_hi - hedges$CI_lo) / (2 * 1.96)  # Calculate standard error from confidence interval
+)
+
+# Create a funnel plot using ggplot
+funnel_plot <- ggplot(funnel_data, aes(x = ES, y = 1 / SE)) +
+  geom_point(shape = 21, fill = "blue", color = "black", size = 3) +
+  geom_line(aes(y = 0), color = "red", linetype = "dashed") +
+  labs(x = "Effect Size", y = "1 / Standard Error") +
+  theme_minimal()
+
+# Display the funnel plot
+print(funnel_plot)
+
+
+##### ========================================================== ##### 
+##### Meta-Regression to show the similarity between a subgroup  #####
+##### ========================================================== #####
+
+# Perform meta-regression analysis
+meta_regression_model <- rma(yi = ES, vi = (CI_hi - CI_lo)^2 / (4 * log(2)),
+                             mods = ~ Organism,
+                             data = hedges)
+
+# Print the summary of the meta-regression analysis
+summary(meta_regression_model)
+
+
+# generate a funnel plot for our meta-regression analysis output
+funnel(meta_regression_model, xlab = "Hedges' g")
+regtest(meta_regression_model)
+ranktest(meta_regression_model)
+funnel(meta_regression_model, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), legend=F)
