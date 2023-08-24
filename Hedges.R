@@ -599,8 +599,9 @@ print(funnel_plot)
 ##### ========================================================== #####
 
 # Perform meta-regression analysis
+# adjust the mods to analyse a desired subgroup
 meta_regression_model <- rma(yi = ES, vi = (CI_hi - CI_lo)^2 / (4 * log(2)),
-                             mods = ~ Organism,
+                             mods = ~ hedges$EstimInter,
                              data = hedges)
 
 # Print the summary of the meta-regression analysis
@@ -611,4 +612,7 @@ summary(meta_regression_model)
 funnel(meta_regression_model, xlab = "Hedges' g")
 regtest(meta_regression_model)
 ranktest(meta_regression_model)
-funnel(meta_regression_model, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), legend=F)
+funnel(meta_regression_model, level=c(90, 95, 99), 
+       shade=c("white", "gray55", "gray75"),
+       xlab = "Hedges' g", legend=F)
+
