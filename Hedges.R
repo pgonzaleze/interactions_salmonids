@@ -573,6 +573,9 @@ species_count <-  hedges %>%
 ##### Funnel plot #####
 ##### =========== #####
 
+row_to_drop <- nrow(hedges)
+hedges <- hedges[-row_to_drop, ] # drop row with overall effect to avoid wrong estimates
+
 #funnel(g$es, g$se, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), legend=TRUE)
 regtest(g$es, sei=g$se)
 ranktest(g$es, sei=g$se)
@@ -613,6 +616,5 @@ funnel(meta_regression_model, xlab = "Hedges' g")
 regtest(meta_regression_model)
 ranktest(meta_regression_model)
 funnel(meta_regression_model, level=c(90, 95, 99), 
-       shade=c("white", "gray55", "gray75"),
+       shade=c("white", "yellow", "orange"),
        xlab = "Hedges' g", legend=F)
-
