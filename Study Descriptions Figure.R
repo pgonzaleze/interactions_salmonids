@@ -22,6 +22,11 @@ library(forcats)
 int_db <- read_excel('Hedges.xlsx')
 head(int_db)
 
+#select first 59 rows 
+int_db <- head(int_db, n = 59)
+summary(int_db)
+tail(int_db) #check - Kuehne et al. 2012 should be the last row
+
 int_db$`Type of study` <- as.factor(int_db$`Type of study`)
 summary(int_db$`Type of study`)
 
