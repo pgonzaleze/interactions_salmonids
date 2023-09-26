@@ -6,8 +6,9 @@
 #####
 # The University of British Columbia
 # Institute for the Oceans and Fisheries
-# Author: Pedro G. González-Espinosa
+# Author: Pedro G. Gonzalez-Espinosa
 # Date: 20/ July /2022
+# Last update: 20 / Sept / 2023
 
 #####
 #Load libraries
@@ -16,12 +17,16 @@ library(readxl)
 library(igraph) 
 library(dplyr)  
 library(ggplot2)  
-library(esc) # Hedges´d
+library(esc) # Hedges?d
 library(forcats) # reorder axis of plots
 
 # load database
 int_db <- read_excel('Hedges.xlsx') # Former "interaction_database"
 int_db$Paired <- paste(int_db$`Stressor A`, ' - ', int_db$`Stressor B`) # combine columns
+
+####################### ================== ####################
+#####################    Paired stressors    ##################
+####################### ================== ####################
 
 # Count the co-occurrences, interactions and species
 cooc <-  int_db %>% 
@@ -70,46 +75,11 @@ as_data_frame(g, what="vertices")
 #             vertex.label.cex=0.4, vertex.label.dist=0, 
 #             layout=tempcenter, edge.curved=0.2) #layout=layout_in_circle
 
-set.seed(105)
+set.seed(202)
 id <- plot(g, edge.arrow.size=0, vertex.color="gold", vertex.size=20, 
              vertex.frame.color="gray", vertex.label.color="black", 
              vertex.label.cex=1, vertex.label.dist=0, 
              layout=layout_with_gem, edge.curved=0.2)
-
-# Basic barplot ordered from lowest frequency to highest frequency
-g <- ggplot(int_db) +
-  theme_minimal()
-
-# Number of species:
-# use "fct_rev" to reverse the order to from low to high
-g + geom_bar(aes(y = fct_rev(fct_infreq(Organism)), fill = Organism)) +
-  scale_fill_brewer(palette = "Spectral") +
-  theme(legend.position = 'none') +
-  labs(y = "Species")
-
-# Number of interaction type:
-g + geom_bar(aes(x = fct_rev(fct_infreq(Interaction)), fill = Interaction)) +
-  scale_fill_brewer(palette = 'Blues') +
-  #scale_fill_grey(start = 0.25, end = 0.75) +
-  labs(x = "Interaction")
-
-# Number of paired variables:
-g + geom_bar(aes(y = fct_rev(fct_infreq(Paired))), fill='gray50') +
-  theme(legend.position = 'none') +
-  labs(y = "Paired stressors")
-
-# by year
-g + geom_bar(aes(Year))
-
-# by life stage
-g <- int_db %>%
-  ggplot(aes(x = fct_rev(fct_infreq(Stage)), fill=Stage)) + 
-  theme_minimal()
-g +  geom_bar() +
-  scale_fill_brewer(palette = "Spectral") +
-  theme(legend.position = 'none') +
-  scale_x_discrete(guide = guide_axis(angle = 90)) +
-  labs(x = "Life stage")
 
 
 ################################################################
