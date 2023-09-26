@@ -23,7 +23,7 @@ library(forcats) # reorder axis of plots
 library(imputeTS) # to change NAs to any other number
 library(FSA) # Dunn Test
 library(metafor) # for mixed-effects meta-regression model & Rank Correlation Test
-library(ggwordcloud) # make a word cloud image
+#library(ggwordcloud) # make a word cloud image
 #library(compute.es) 
 
 # load database
@@ -353,7 +353,7 @@ colnames(effect_size) <- c('ES', 'CI_lo', 'CI_hi')  # rename columns
 # paste both dataframes original dataframe with the effects size and CI dataframe
 hedges <- cbind(int_db, effect_size)
 
-# add data of two cases from Jackson et al. 2015 
+# add data a single case from Jackson et al. 2015 
 hedges[58,'ES'] = -0.10 
 #hedges[59,'ES'] = -0.43
 hedges[58,'CI_lo'] = -0.25  
@@ -535,40 +535,6 @@ coocPair <-  hedges %>%
   count(PairedJoin)
 #write.csv(coocPair, "paireedCount.csv")
 
-######### =================================================== ###########
-#########                  Descriptive plots                  ###########
-######### =================================================== ###########
-
-# Number of species:
-# use "fct_rev" to reverse the order to from low to high
-# Basic barplot ordered from lowest frequency to highest frequency
-plt <- ggplot(hedges) +
-  theme_minimal()
-
-plt + geom_bar(aes(y = fct_rev(fct_infreq(Organism)), fill = Organism)) +
-  scale_fill_brewer(palette = "Spectral") +
-  theme(legend.position = 'none') +
-  labs(y = "Species")
-
-# by life stage ()
-plt <- hedges %>%
-  ggplot(aes(x = fct_rev(fct_infreq(Stage)), fill=Stage)) + 
-  theme_minimal()
-plt +  geom_bar() +
-  scale_fill_brewer(palette = "Spectral") +
-  theme(legend.position = 'none') +
-  scale_x_discrete(guide = guide_axis(angle = 90)) +
-  labs(x = "Life stage")
-
-
-stage_count <- hedges %>% 
-  count(Stage)
-
-species_count <-  hedges %>% 
-  count(Organism)
-
-
-
 ##### =========== #####
 ##### Funnel plot #####
 ##### =========== #####
@@ -576,25 +542,10 @@ species_count <-  hedges %>%
 row_to_drop <- nrow(hedges)
 hedges <- hedges[-row_to_drop, ] # drop row with overall effect to avoid wrong estimates
 
+# This step is only as an explatory analysis. The meta-regression is below.
 #funnel(g$es, g$se, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), legend=TRUE)
 regtest(g$es, sei=g$se)
 ranktest(g$es, sei=g$se)
-
-# Create a dataframe with effect sizes and standard errors
-funnel_data <- data.frame(
-  ES = hedges$ES,
-  SE = (hedges$CI_hi - hedges$CI_lo) / (2 * 1.96)  # Calculate standard error from confidence interval
-)
-
-# Create a funnel plot using ggplot
-funnel_plot <- ggplot(funnel_data, aes(x = ES, y = 1 / SE)) +
-  geom_point(shape = 21, fill = "blue", color = "black", size = 3) +
-  geom_line(aes(y = 0), color = "red", linetype = "dashed") +
-  labs(x = "Effect Size", y = "1 / Standard Error") +
-  theme_minimal()
-
-# Display the funnel plot
-print(funnel_plot)
 
 
 ##### ========================================================== ##### 
@@ -602,7 +553,7 @@ print(funnel_plot)
 ##### ========================================================== #####
 
 # Perform meta-regression analysis
-# adjust the mods to analyse a desired subgroup
+# adjust the mods to analyse a desired subgroup using the "$" sign
 meta_regression_model <- rma(yi = ES, vi = (CI_hi - CI_lo)^2 / (4 * log(2)),
                              mods = ~ hedges$EstimInter,
                              data = hedges)
