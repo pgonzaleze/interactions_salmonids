@@ -4,11 +4,11 @@
 ############ =========================== ############
 
 #####
-# The University of British Columbia
-# Institute for the Oceans and Fisheries
+# Simon Fraser University
+# Resource & Environmental Management
 # Author: Pedro G. Gonzalez-Espinosa
 # Created: 13/ AUG /2022
-# Last update: 21/ AUG /2023
+# Last update: 15/ AUG /2024
 
 #####
 #Load libraries
@@ -27,20 +27,21 @@ library(metafor) # for mixed-effects meta-regression model & Rank Correlation Te
 #library(compute.es) 
 
 # load database
-int_db <- read_excel('Hedges.xlsx')
+int_db <- read_excel('Hedges_2024.xlsx')
 
 # Subset the data frame to compute the effect size 
-int_db <- int_db[1:59, ] # adjust according to the length of those records with full data 
+int_db <- int_db[1:46, ] # adjust according to the length of those records with full data 
 
 # save lists of medias, SD and sample sizes, use "unlist" to  convert a list to vector
-media1 <- as.numeric(unlist(int_db[,13]))   
-media2 <- as.numeric(unlist(int_db[,14]))
-sd1 <- as.numeric(unlist(int_db[,15]))
-sd2 <- as.numeric(unlist(int_db[,16]))
-replicates <- as.numeric(unlist(int_db[,19]))
-replicates <- na_replace(replicates, 1) # change NA?s to 1
-sample_ctrl <- as.numeric(unlist(int_db[,17])) #* replicates 
-sample_n <- as.numeric(unlist(int_db[,18])) #* replicates
+# save list for AB and A+B data
+media1 <- as.numeric(unlist(int_db[,15])) # use mean of AB   
+media2 <- as.numeric(unlist(int_db[,17])) # expected mean of A+B 
+sd1 <- as.numeric(unlist(int_db[,33])) # AB
+sd2 <- as.numeric(unlist(int_db[,35])) # expected A+B
+replicates <- as.numeric(unlist(int_db[,38]))
+replicates <- na_replace(replicates, 1) # 
+sample_ctrl <- as.numeric(unlist(int_db[,36])) #* replicates 
+sample_n <- as.numeric(unlist(int_db[,37])) #* replicates
 
 
 ##### Hot fix to avoid error using R Version 4.3.1 ####
@@ -343,7 +344,7 @@ esc_mean_se <- function(grp1m, grp1se, grp1n, grp2m, grp2se, grp2n, r,
 
 #####
 
-# compute the Hedges?d
+# compute the Hedge's g
 g=(esc_mean_sd(grp1m=media1,grp1sd=sd1,grp1n=sample_n,
                grp2m=media2,grp2sd=as.numeric(sd2),grp2n=sample_n, es.type = 'g'))
 
@@ -352,14 +353,6 @@ colnames(effect_size) <- c('ES', 'CI_lo', 'CI_hi')  # rename columns
 
 # paste both dataframes original dataframe with the effects size and CI dataframe
 hedges <- cbind(int_db, effect_size)
-
-# add data a single case from Jackson et al. 2015 
-hedges[58,'ES'] = -0.10 
-#hedges[59,'ES'] = -0.43
-hedges[58,'CI_lo'] = -0.25  
-#hedges[59,'CI_lo'] = -0.74
-hedges[58,'CI_hi'] =  0.04
-#hedges[59,'CI_hi'] = -0.13
 
 ### Compute the overall effect sizes
 AveInt = hedges %>% 
@@ -395,7 +388,7 @@ SumInt = hedges %>% group_by(EstimInter) %>%
             CI_lo_avg = mean(CI_lo),
             CI_hi_avg = mean(CI_hi),
             .groups = 'drop')
-#View(SumInt)
+#View(SumInt) # inspect effects by interaction type
 
 ggplot(data=SumInt, aes(y=reorder(as.factor(EstimInter),-ES_avg), x=ES_avg, xmin=CI_lo_avg, xmax=CI_hi_avg, 
                         colour=EstimInter)) +
@@ -416,7 +409,7 @@ SumIntOrg = hedges %>% group_by(EstimInter, Organism) %>%
             .groups = 'drop')
 SumIntOrg$index <- 1:nrow(SumIntOrg) # create a column based on the index number
 SumIntOrg$OrgID <- str_c(SumIntOrg$Organism, ' S' ,SumIntOrg$index)
-#View(SumIntOrg)
+#view(SumIntOrg)
 
 ggplot(data=SumIntOrg, aes(y=reorder(as.factor(OrgID),-ES_avg), x=ES_avg, xmin=CI_lo_avg, xmax=CI_hi_avg, 
                         colour=EstimInter)) +
@@ -445,19 +438,11 @@ g + geom_bar(aes(x = fct_rev(fct_infreq(EstimInter)),
 #####################       Map minder       ###################
 ##################### ====================== ###################
 # Subset the data frame to compute the effect size 
-hedges <- hedges[1:59, ] # adjust according to the length of those records with full data 
+hedges <- hedges[1:47, ] # adjust according to the length of those records with full data 
 # Create a new column combining stressors as a string 
 hedges$PairedJoin <- paste(hedges$`Stressor A`, "-",hedges$`Stressor B`, sep="")
 hedges$InterTypePaired <- paste(hedges$EstimInter, ' ',hedges$PairedJoin)
-hedges[1,'InterTypePaired'] = "Antagonistic   Temperature-DO" # match names and order of stressors
-hedges[2,'InterTypePaired'] = "Synergistic   Temperature-DO" # match names and order of stressors
-hedges[3,'InterTypePaired'] = "Additive   Temperature-DO" # match names and order of stressors
-hedges[11,'InterTypePaired'] = "Synergistic   Temperature-Metal" # match names and order of stressors
-hedges[12,'InterTypePaired'] = "Synergistic   Temperature-Metal" # match names and order of stressors
-hedges[13,'InterTypePaired'] = "Synergistic   Temperature-Pesticides" # match names and order of stressors
-hedges[25,'InterTypePaired'] = "Synergistic   Temperature-Nitrate" # match names and order of stressors
-hedges[51,'InterTypePaired'] = "Synergistic   Temperature-pH" # match names and order of stressors
-hedges[56,'InterTypePaired'] = "Synergistic   Temperature-pH" # match names and order of stressors
+# hedges[1,'InterTypePaired'] = "Antagonistic   Temperature-DO" # match names and order of stressors
 
 coocInterType <-  hedges %>% 
   count(InterTypePaired)
@@ -504,13 +489,13 @@ id <- plot(g, edge.arrow.size=0, vertex.color="#3399CC",
 ############################################################
 
  
-kruskal.test(n ~ as.factor(`interaction type`), data=coocount)
+kruskal.test(n ~ as.factor(`interaction type`), data=coocount) 
 dunnTest(n ~ as.factor(`interaction type`), data=coocount, method = "bonferroni")
 cor.test(x=hedges$`Sample size`, y=hedges$ES, method = 'spearman', exact = FALSE) # test correlation between effects size and sample size
 
 
 # Subset the data frame to compute the effect size 
-hedges <- hedges[1:59, ] # adjust according to the length of those records with full data 
+hedges <- hedges[1:47, ] # adjust according to the length of those records with full data 
 
 # comparing multiple columns
 as.data.frame(table(hedges$`Stressor A`))
@@ -521,15 +506,13 @@ as.data.frame(table(hedges$`Stressor B`))
 #sum(total_obs)
 
 ### most studiesd pair of stressors
-hedges[1,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
-hedges[2,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
-hedges[3,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
-hedges[11,'PairedJoin'] = "Temperature-Metal" # match names and order of stressors
-hedges[12,'PairedJoin'] = "Temperature-Metal" # match names and order of stressors
-hedges[13, 'PairedJoin'] = "Temperature-Pesticides" # match names and order of stressors
-hedges[25, 'PairedJoin'] = "Temperature-Nitrate" # match names and order of stressors
-hedges[51,'PairedJoin'] = "Temperature-pH" # match names and order of stressors
-hedges[56,'PairedJoin'] = "Temperature-pH" # match names and order of stressors
+# hedges[1,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
+# hedges[2,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
+# hedges[3,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
+# hedges[11,'PairedJoin'] = "Temperature-Metal" # match names and order of stressors
+# hedges[12,'PairedJoin'] = "Temperature-Metal" # match names and order of stressors
+# hedges[13, 'PairedJoin'] = "Temperature-Pesticides" # match names and order of stressors
+# hedges[25, 'PairedJoin'] = "Temperature-Nitrate" # match names and order of stressors
 
 coocPair <-  hedges %>% 
   count(PairedJoin)
@@ -544,8 +527,8 @@ hedges <- hedges[-row_to_drop, ] # drop row with overall effect to avoid wrong e
 
 # This step is only as an explatory analysis. The meta-regression is below.
 #funnel(g$es, g$se, level=c(90, 95, 99), shade=c("white", "gray55", "gray75"), legend=TRUE)
-regtest(g$es, sei=g$se)
-ranktest(g$es, sei=g$se)
+# regtest(g$es, sei=g$se)
+# ranktest(g$es, sei=g$se)
 
 
 ##### ========================================================== ##### 
@@ -555,7 +538,7 @@ ranktest(g$es, sei=g$se)
 # Perform meta-regression analysis
 # adjust the mods to analyse a desired subgroup using the "$" sign
 meta_regression_model <- rma(yi = ES, vi = (CI_hi - CI_lo)^2 / (4 * log(2)),
-                             mods = ~ hedges$EstimInter,
+                             mods = ~ hedges$Stage,
                              data = hedges)
 
 # Print the summary of the meta-regression analysis

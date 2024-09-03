@@ -8,7 +8,7 @@
 # Institute for the Oceans and Fisheries
 # Author: Sara Cannon
 # Created: 31 August, 2023
-# Last update: 31 August, 2023
+# Last update: 1 August, 2024
 
 #load libraries
 library(ggplot2)
@@ -19,13 +19,13 @@ library(RColorBrewer)
 library(forcats)
 
 #load and explore data
-int_db <- read_excel('Hedges.xlsx')
+int_db <- read_excel('Hedges_2024.xlsx')
 head(int_db)
 
 #select first 59 rows 
-int_db <- head(int_db, n = 59)
+int_db <- head(int_db, n = 46)
 summary(int_db)
-tail(int_db) #check - Kuehne et al. 2012 should be the last row
+tail(int_db) #check - Laetz et al. 2009 should be the last row
 
 int_db$`Type of study` <- as.factor(int_db$`Type of study`)
 summary(int_db$`Type of study`)
