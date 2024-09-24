@@ -506,14 +506,6 @@ as.data.frame(table(hedges$`Stressor B`))
 #sum(total_obs)
 
 ### most studiesd pair of stressors
-# hedges[1,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
-# hedges[2,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
-# hedges[3,'PairedJoin'] = "Temperature-DO" # match names and order of stressors
-# hedges[11,'PairedJoin'] = "Temperature-Metal" # match names and order of stressors
-# hedges[12,'PairedJoin'] = "Temperature-Metal" # match names and order of stressors
-# hedges[13, 'PairedJoin'] = "Temperature-Pesticides" # match names and order of stressors
-# hedges[25, 'PairedJoin'] = "Temperature-Nitrate" # match names and order of stressors
-
 coocPair <-  hedges %>% 
   count(PairedJoin)
 #write.csv(coocPair, "paireedCount.csv")
